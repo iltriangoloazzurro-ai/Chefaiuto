@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Check, Trash2, Send, PenTool } from 'lucide-react';
+// Fix: Removed 'PlusMinus' as it is not an exported member of 'lucide-react' and was not being used.
+import { Check, Trash2, Send, PenTool, AlertCircle } from 'lucide-react';
 import { Fridge, DailyLog, Settings } from '../types';
 
 interface Props {
@@ -15,9 +16,23 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleReadingChange = (id: string, value: string) => {
     setReadings(prev => ({ ...prev, [id]: value }));
+  };
+
+  const toggleSign = (id: string) => {
+    setReadings(prev => {
+      const currentVal = prev[id] || '';
+      if (currentVal === '') return { ...prev, [id]: '-' };
+      if (currentVal === '-') return { ...prev, [id]: '' };
+      
+      const numVal = parseFloat(currentVal);
+      if (isNaN(numVal)) return prev;
+      
+      return { ...prev, [id]: (numVal * -1).toString() };
+    });
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
@@ -28,7 +43,7 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
   const stopDrawing = () => {
     setIsDrawing(false);
     if (canvasRef.current) {
-      setSignature(canvasRef.current.toDataURL());
+      setSignature(canvasRef.current.toDataURL('image/jpeg', 0.5));
     }
   };
 
@@ -42,9 +57,9 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
     const x = ('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left;
     const y = ('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top;
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#1e293b';
+    ctx.strokeStyle = '#000000';
 
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -56,8 +71,10 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
-      ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      ctx?.beginPath();
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+      }
       setSignature(null);
     }
   };
@@ -68,10 +85,16 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
       return;
     }
 
+    const hasValue = Object.values(readings).some(v => v !== '' && v !== '-');
+    if (!hasValue) {
+      alert('Inserisci almeno una temperatura valida.');
+      return;
+    }
+
     const logReadings = fridges.map(f => ({
       fridgeId: f.id,
       fridgeName: f.name,
-      value: parseFloat(readings[f.id] || '0')
+      value: readings[f.id] && readings[f.id] !== '-' ? parseFloat(readings[f.id]) : 0
     }));
 
     const newLog: DailyLog = {
@@ -83,36 +106,41 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
     };
 
     setStatus('saving');
+    setErrorMessage(null);
 
     try {
-      if (settings.googleSheetsUrl) {
-        // Prepare data for Google Sheets
+      if (settings.googleSheetsUrl && settings.googleSheetsUrl.startsWith('http')) {
         const payload = {
           date: new Date().toLocaleDateString('it-IT'),
+          time: new Date().toLocaleTimeString('it-IT'),
           readings: logReadings,
           signature: signature
         };
 
-        // We use fetch with no-cors if it's a simple Apps Script redirect, 
-        // but for structured response we normally need a proxy or proper CORS setup in Apps Script.
         await fetch(settings.googleSheetsUrl, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-cache',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
           body: JSON.stringify(payload)
         });
       }
 
       onSave(newLog);
       setStatus('success');
+      
       setTimeout(() => {
         setReadings({});
         clearCanvas();
         setStatus('idle');
       }, 2000);
+
     } catch (err) {
-      console.error(err);
+      console.error("Errore invio dati:", err);
       setStatus('error');
+      setErrorMessage("Errore di connessione. Verifica l'URL nelle impostazioni.");
     }
   };
 
@@ -124,26 +152,37 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
       </header>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full">
+        <table className="w-full text-sm md:text-base">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Unità Refrigerata</th>
-              <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">Temperatura (°C)</th>
+              <th className="px-4 md:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Unità Refrigerata</th>
+              <th className="px-4 md:px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">Temperatura (°C)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {fridges.map(fridge => (
               <tr key={fridge.id}>
-                <td className="px-6 py-4 font-medium text-slate-800">{fridge.name}</td>
-                <td className="px-6 py-4 text-right">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={readings[fridge.id] || ''}
-                    onChange={(e) => handleReadingChange(fridge.id, e.target.value)}
-                    placeholder="0.0"
-                    className="w-24 text-right px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
-                  />
+                <td className="px-4 md:px-6 py-4 font-medium text-slate-800">{fridge.name}</td>
+                <td className="px-4 md:px-6 py-4">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleSign(fridge.id)}
+                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold h-10 w-10 md:h-11 md:w-11 rounded-lg flex items-center justify-center transition-colors active:scale-90"
+                      title="Cambia segno +/-"
+                    >
+                      <span className="text-lg">±</span>
+                    </button>
+                    <input
+                      type="number"
+                      step="0.1"
+                      inputMode="decimal"
+                      value={readings[fridge.id] || ''}
+                      onChange={(e) => handleReadingChange(fridge.id, e.target.value)}
+                      placeholder="0.0"
+                      className="w-20 md:w-24 text-right h-10 md:h-11 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -163,7 +202,7 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
             <Trash2 size={14} /> Cancella
           </button>
         </div>
-        <div className="relative border-2 border-slate-200 rounded-lg overflow-hidden bg-slate-50 h-48 touch-none">
+        <div className="relative border-2 border-slate-200 rounded-lg overflow-hidden bg-white h-48 touch-none">
           <canvas
             ref={canvasRef}
             width={800}
@@ -178,8 +217,14 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
             className="w-full h-full cursor-crosshair"
           />
         </div>
-        <p className="text-xs text-slate-400 text-center">Firma nell'area sopra per confermare le letture</p>
       </div>
+
+      {errorMessage && (
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg text-sm border border-red-100">
+          <AlertCircle size={18} />
+          {errorMessage}
+        </div>
+      )}
 
       <button
         onClick={handleSubmit}
@@ -191,23 +236,19 @@ const TemperatureLog: React.FC<Props> = ({ fridges, onSave, settings }) => {
         } text-white`}
       >
         {status === 'saving' ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
         ) : status === 'success' ? (
           <>
             <Check size={24} />
-            <span>Registrato con Successo!</span>
+            <span>Dati Inviati al Foglio!</span>
           </>
         ) : (
           <>
             <Send size={20} />
-            <span>Salva Registro e Invia</span>
+            <span>Salva e Invia al Cloud</span>
           </>
         )}
       </button>
-
-      {status === 'error' && (
-        <p className="text-red-500 text-center text-sm font-semibold">Errore durante il salvataggio. Riprova.</p>
-      )}
     </div>
   );
 };

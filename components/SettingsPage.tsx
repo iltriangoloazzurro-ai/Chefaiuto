@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Settings, Fridge } from '../types';
-import { Save, Plus, Trash2, Cloud } from 'lucide-react';
+import { Save, Plus, Trash2, Cloud, Info, Building2 } from 'lucide-react';
 
 interface Props {
   settings: Settings;
@@ -31,31 +31,86 @@ const SettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
   };
 
   const handleSave = () => {
+    if (localSettings.googleSheetsUrl && !localSettings.googleSheetsUrl.includes('/exec')) {
+      alert("Attenzione: l'URL di Google Sheets solitamente termina con '/exec'. Verifica di aver copiato l'URL della 'Web App'.");
+    }
     setSettings(localSettings);
-    alert('Impostazioni salvate con successo!');
+    alert('Impostazioni salvate localmente!');
   };
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-3xl font-bold text-slate-900">Impostazioni</h1>
-        <p className="text-slate-600">Configura i tuoi frigoriferi e la sincronizzazione cloud.</p>
+        <p className="text-slate-600">Configura i tuoi frigoriferi e i dati aziendali per i report.</p>
       </header>
+
+      <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Building2 className="text-blue-600" size={20} /> Dati Aziendali
+        </h2>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-slate-600">Ragione Sociale</label>
+            <input
+              type="text"
+              value={localSettings.companyName || ''}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, companyName: e.target.value }))}
+              placeholder="es. Ristorante Da Mario S.r.l."
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-slate-600">Indirizzo Sede Operativa</label>
+            <input
+              type="text"
+              value={localSettings.companyAddress || ''}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, companyAddress: e.target.value }))}
+              placeholder="es. Via Roma 12, 00100 Roma (RM)"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-slate-600">Partita IVA / P.IVA</label>
+            <input
+              type="text"
+              value={localSettings.companyVat || ''}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, companyVat: e.target.value }))}
+              placeholder="es. IT01234567890"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            />
+          </div>
+        </div>
+      </section>
 
       <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
           <Cloud className="text-blue-600" size={20} /> Sincronizzazione Google Sheets
         </h2>
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-600">Web App URL (Google Apps Script)</label>
-          <input
-            type="text"
-            value={localSettings.googleSheetsUrl}
-            onChange={(e) => setLocalSettings(prev => ({ ...prev, googleSheetsUrl: e.target.value }))}
-            placeholder="https://script.google.com/macros/s/.../exec"
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-          />
-          <p className="text-xs text-slate-400">Inserisci l'URL della Web App fornito dal tuo script per salvare i dati nel cloud.</p>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-600">Web App URL (Google Apps Script)</label>
+            <input
+              type="text"
+              value={localSettings.googleSheetsUrl}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, googleSheetsUrl: e.target.value }))}
+              placeholder="https://script.google.com/macros/s/.../exec"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            />
+          </div>
+          
+          <div className="bg-blue-50 p-4 rounded-lg flex gap-3 border border-blue-100">
+            <info className="text-blue-600 shrink-0" size={20} />
+            <div className="text-sm text-blue-800">
+              <p className="font-bold mb-1">Verifica l'integrazione:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Usa la funzione <strong>doPost(e)</strong> nello script.</li>
+                <li>Pubblica come <strong>Web App</strong>.</li>
+                <li>Accesso impostato su <strong>Anyone</strong> (Chiunque).</li>
+                <li>Copia l'URL che termina con <code>/exec</code>.</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -89,17 +144,10 @@ const SettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
       <button
         onClick={handleSave}
-        className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700"
+        className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
       >
-        <Save size={20} /> Salva Tutte le Impostazioni
+        <Save size={20} /> Salva Impostazioni
       </button>
-
-      <div className="bg-slate-900 text-white p-6 rounded-xl">
-        <h3 className="font-bold mb-2">Nota per Google Sheets</h3>
-        <p className="text-sm text-slate-400 leading-relaxed">
-          Per far funzionare la persistenza, devi creare un Google Apps Script con una funzione <code>doPost(e)</code> che estragga i dati dal corpo della richiesta e li aggiunga a un foglio di lavoro. Assicurati di pubblicare lo script come Web App con accesso "Anyone".
-        </p>
-      </div>
     </div>
   );
 };

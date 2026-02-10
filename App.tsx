@@ -14,6 +14,9 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('chefaiuto_settings');
     return saved ? JSON.parse(saved) : {
       googleSheetsUrl: '',
+      companyName: '',
+      companyAddress: '',
+      companyVat: '',
       fridges: [
         { id: '1', name: 'Frigo Carni' },
         { id: '2', name: 'Frigo Verdure' },
@@ -63,7 +66,7 @@ const App: React.FC = () => {
             <Route path="/" element={<Dashboard logs={logs} />} />
             <Route path="/temperature" element={<TemperatureLog fridges={settings.fridges} onSave={addLog} settings={settings} />} />
             <Route path="/etichette" element={<LabelMaker />} />
-            <Route path="/report" element={<ReportPage logs={logs} />} />
+            <Route path="/report" element={<ReportPage logs={logs} settings={settings} />} />
             <Route path="/settings" element={<SettingsPage settings={settings} setSettings={setSettings} />} />
           </Routes>
         </main>

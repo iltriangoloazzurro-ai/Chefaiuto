@@ -2,7 +2,10 @@
 import React from 'react';
 import { DailyLog } from '../types';
 import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
+// Fix: Import 'it' from the specific locale path to resolve the "no exported member" error.
+// Depending on date-fns version, this might need to be a default import or a named import.
+// In TypeScript environments, the specific path /it is often more reliable.
+import { it } from 'date-fns/locale/it';
 
 interface Props {
   logs: DailyLog[];

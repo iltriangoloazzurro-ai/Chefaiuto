@@ -27,4 +27,7 @@ export interface LabelData {
 export interface Settings {
   googleSheetsUrl: string;
   fridges: Fridge[];
+  companyName: string;
+  companyAddress: string;
+  companyVat: string;
 }
