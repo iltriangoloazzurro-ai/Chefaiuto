@@ -1,0 +1,5 @@
+{
+  "name": "ChefAiuto HACCP",
+  "description": "App professionale per la gestione HACCP: creazione etichette, registro temperature con firma digitale e sincronizzazione Google Sheets.",
+  "requestFramePermissions": []
+}
